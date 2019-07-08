@@ -1,18 +1,12 @@
-USE scouting;
+USE strategy;
 SET SQL_SAFE_UPDATES = 0;
 DELETE FROM alliance_member;
 DELETE FROM matches;
 DELETE FROM frc_event;
 DELETE FROM team;
-INSERT INTO team VALUES (2994, 'ASTECHZ'), 
-						(6135, 'Arctos'),
-                        (6878, 'Panthera Tech'),
-                        (5406, 'Celt-X'),
-                        (1310, 'Runneymede Robotics'),
-                        (4525, 'Renaissance Robotics'), 
-                        (4519, 'King\'s Robotics');
+-- to insert teams, use load_teams.js
                         
-INSERT INTO frc_event VALUES ('ONOSH');
+-- to insert events, use load_events.js
 
 INSERT INTO matches VALUES (1, 'ONOSH', FALSE);
 INSERT INTO matches VALUES (2, 'ONOSH', FALSE);
@@ -71,7 +65,7 @@ INSERT INTO alliance_outcome VALUES ((SELECT id FROM alliance a WHERE a.match_nu
                                     TRUE);  
 INSERT INTO alliance_outcome VALUES ((SELECT id FROM alliance a WHERE a.match_number = 5 AND a.event_code = 'ONOSH' AND NOT a.practice AND a.alliance_colour = 'red'), 
 									29,
-                                    TRUE,
+                                    FALSE,
                                     FALSE);                                      
                                     
 INSERT INTO alliance_member_outcome VALUES ((SELECT id FROM alliance a WHERE a.match_number = 1 AND a.event_code = 'ONOSH' AND NOT a.practice AND a.alliance_colour = 'blue'),

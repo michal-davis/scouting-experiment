@@ -5,6 +5,8 @@ const https = require('https');
 
 const endpoint = "https://www.thebluealliance.com/api/v3";
 
+const district_key = "2019ont";
+
 // This is my API key.
 const api_key = "sX6YAEFTW4k2ovNN9IQKRhwFe5XArlokFHUU899aK6Vr4ZlbiA4tq36R4gKEmh6h";
 
@@ -54,6 +56,42 @@ function all_teams(team_handler, no_more_teams, page=0) {
 
 
 module.exports.all_teams = all_teams;
+
+// call the TBA API that gets an event list for a district.
+// This function takes three inputs.
+// event_handler is a function that is called once for each event that the API returns
+// no_more_events is a function (of no args) called after all events have been read
+function all_events(event_handler, no_more_events) {
+    //console.log("getting page " + page);
+    var url =  endpoint + "/" + "district/" + district_key + "/events/simple";
+    //console.log(url);
+    https.get(url,
+	      api_options(),   // TBA needs your account key
+	      (resp) => {
+		  // collect all the response data until there is no more
+		  let reply = "";
+		  resp.on('data', (chunk) => {
+		      // got more data from TBA, add it to the string
+		      reply += chunk;
+		  });
+		  
+		  resp.on('end', () => {
+		      // the reply is a JSON object we need to parse it
+		      //the result is an array of event objects, call event_handler for each one
+		      JSON.parse(reply)
+			  .forEach(event => event_handler(event));
+		      no_more_events();
+		  });
+		  
+	      }).on('error', (e) => {
+		  console.error(e);
+	      });
+}
+
+
+module.exports.all_teams = all_teams;
+module.exports.all_events = all_events;
+
 
 //if run at top level, just show the teams
 if (require.main === module) {
