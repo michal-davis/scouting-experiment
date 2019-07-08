@@ -1,5 +1,15 @@
-CREATE DATABASE scouting;
-USE scouting;
+CREATE DATABASE strategy;
+USE strategy;
+/*  MySQL 8 has pluggable authentication methods.
+ The default is caching_sha2_password  but node mysql does not support it.
+ Downgrade this account to use plaintext password authentication. */
+
+CREATE USER 'strategy'@'%' IDENTIFIED WITH mysql_native_password BY 'foo';
+GRANT SELECT,INSERT,UPDATE,DELETE
+  ON strategy.*
+  TO 'strategy';
+FLUSH PRIVILEGES;
+
 DROP TABLE IF EXISTS team;
 CREATE TABLE team (
 	team_number INT PRIMARY KEY, 
