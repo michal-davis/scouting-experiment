@@ -17,12 +17,12 @@ CREATE TABLE team (
 );
 DROP TABLE IF EXISTS frc_event;
 CREATE TABLE frc_event (
-	event_code VARCHAR (12) PRIMARY KEY
+	event_code VARCHAR (32) PRIMARY KEY
 );
 DROP TABLE IF EXISTS matches;
 CREATE TABLE matches (
 	match_number NUMERIC, -- assigned by event scheduler (ex. quals 4)
-    event_code VARCHAR (12),
+    event_code VARCHAR (32),
     practice BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (match_number, event_code, practice),
     CONSTRAINT FOREIGN KEY (event_code) REFERENCES frc_event (event_code) ON DELETE CASCADE
@@ -31,7 +31,7 @@ DROP TABLE IF EXISTS alliance;
 CREATE TABLE alliance (
 	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	match_number NUMERIC, 
-    event_code VARCHAR (12),
+    event_code VARCHAR (32),
     practice BOOLEAN DEFAULT FALSE,
 	alliance_colour ENUM ('red', 'blue'), 
     CONSTRAINT FOREIGN KEY (match_number, event_code, practice) REFERENCES matches (match_number, event_code, practice) ON DELETE CASCADE,
