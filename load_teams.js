@@ -23,8 +23,6 @@ function is_Ontario(x) {
 if (require.main === module) {
 	db.with_connection(connection =>
 					   tba.all_teams(x => is_Ontario(x) && add_team(connection, x.team_number, x.nickname),
-									 () => {console.log("done");
-											connection.end(); 
-											process.exit()}
+									 () => {connection.end()}
 									));
 }
