@@ -54,17 +54,12 @@ function all_teams(team_handler, no_more_teams, page=0) {
 	      });
 }
 
-
-module.exports.all_teams = all_teams;
-
 // call the TBA API that gets an event list for a district.
-// This function takes three inputs.
+// This function takes two inputs.
 // event_handler is a function that is called once for each event that the API returns
 // no_more_events is a function (of no args) called after all events have been read
 function all_events(event_handler, no_more_events) {
-    //console.log("getting page " + page);
     var url =  endpoint + "/" + "district/" + district_key + "/events/simple";
-    //console.log(url);
     https.get(url,
 	      api_options(),   // TBA needs your account key
 	      (resp) => {
@@ -88,9 +83,40 @@ function all_events(event_handler, no_more_events) {
 	      });
 }
 
+// call the TBA API that gets basic event/match info.
+// This function takes three inputs.
+// team_handler is a function that is called once for each team that the API returns
+// no_more_teams is a function (of no args) called after all teams have been read
+// page is an optional input used with the TBA API
+function matches_at_event(event_code, match_handler, no_more_matches) {
+    var url =  endpoint + "/event/" + event_code + "/matches/simple";
+    //console.log(url);
+    https.get(url,
+	      api_options(),   // TBA needs your account key
+	      (resp) => {
+		  // collect all the response data until there is no more
+		  let reply = "";
+		  resp.on('data', (chunk) => {
+		      // got more data from TBA, add it to the string
+		      reply += chunk;
+		  });
+		  
+		  resp.on('end', () => {
+		      // the reply is a JSON object we need to parse it
+		      //the result is an array of match objects, call team_handler for each one
+		      match_handler(JSON.parse(reply)[0]);
+			 // .forEach(match => match_handler(match));
+		      no_more_matches();
+		  });
+		  
+	      }).on('error', (e) => {
+		  console.error(e);
+	      });
+}
 
 module.exports.all_teams = all_teams;
 module.exports.all_events = all_events;
+module.exports.matches_at_event = matches_at_event;
 
 
 //if run at top level, just show the teams
