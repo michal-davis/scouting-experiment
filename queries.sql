@@ -8,6 +8,7 @@ SELECT * from alliance ORDER BY match_number ASC;
 SET SQL_SAFE_UPDATES = 0;
 DELETE FROM matches;
 
+-- find red/blue alliance_ids for each match
 SELECT m.event_code, m.match_number, red.id as red_id, blue.id as blue_id
 FROM matches m
 INNER JOIN alliance red
@@ -21,6 +22,7 @@ INNER JOIN alliance blue
   AND blue.practice = m.practice
   AND blue.alliance_colour = 'blue';
  
+ -- find alliance sizes for all matches
 SELECT
    m.event_code
  , m.match_number
@@ -46,7 +48,7 @@ INNER JOIN alliance_member blue_team
 GROUP BY m.event_code, m.match_number, red.id, blue.id
 ORDER BY m.event_code, m.match_number;
  
- 
+ -- select all matches of 6135
 SELECT
    m.event_code
  , m.match_number
@@ -60,3 +62,4 @@ INNER JOIN alliance_member team
  ON team.alliance_id = a.id
 WHERE team.team_number = 6135
 ORDER BY event_code, match_number;
+
