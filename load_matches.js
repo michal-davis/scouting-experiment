@@ -3,67 +3,123 @@
 
 const tba = require('./tba.js');
 const db = require('./scouting.js');
+const sequentially = require('./sequentially.js');
 
-//# Using connection to database, add get the match object
+// Using connection to database, add the match object
+//basic match schedule information is stored in several tables: matches, alliance, and alliance_member
+
 function add_matches(connection, match) {
-    console.log(match.match_number + " "  + match.event_key);
-    //basic match schedule information is stored in several tables: matches, alliance, and alliance_member
-    connection.query('INSERT INTO matches (match_number, event_code) VALUES(?, ?) ON DUPLICATE KEY UPDATE event_code = event_code',
-		     [match.match_number, match.event_key],
-		     function (error, results, fields) {
-			 if (error) {
-			     console.log(error);
-			     throw error;
-			 }
-		     });
-    
-    var alliance_ids = {"red": null, "blue": null};
-    //adds info into alliance (red, then blue)
-    connection.query("INSERT INTO alliance (match_number, event_code, practice, alliance_colour) VALUES (?, ?, FALSE, 'red') ON DUPLICATE KEY UPDATE event_code = event_code",
-		     [match.match_number, match.event_key],
-		     function (error, results, fields) {
-			 if (error) {
-			     throw error;
-			 }
-		     });
-    
-    connection.query('SELECT LAST_INSERT_ID() AS id',
-		     (error, results, fields) => {
-			 console.log("results" + results[0].id);
-			 alliance_ids["red"] = results[0].id;
-			 console.log("in red" + alliance_ids);
-		     });
-    console.log("after red" + alliance_ids);
-    
-    connection.query("INSERT INTO alliance (match_number, event_code, practice, alliance_colour) VALUES (?, ?, FALSE, 'blue') ON DUPLICATE KEY UPDATE event_code = event_code",
-		      [match.match_number, match.event_key],
-		     function (error, results, fields) {
-			 if (error) {
-			     throw error;
-			 }
-		     });
+    console.log(match.event_key + " " + match.match_number);
 
-    connection.query('SELECT LAST_INSERT_ID() AS id', (error, results, fields) => console.log(results[0].id));
-    
-    //console.log(alliance_ids["red"] + " " + alliance_ids["blue"]);
-    //adds info into alliance_member (3 red, then 3 blue)
-    connection.query("INSERT INTO alliance_member (alliance_id, team_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE team_number = team_number;",
-		     [alliance_ids["red"], parseInt(match.alliances["red"].team_keys[0].substring(3), 10)],
-		     function (error, results, fields) {
-			 if (error) {
-			     throw error;
-			 }
-		     });
+    var alliance_ids = {"red": null, "blue": null};
+
+	// Node runs each database query asynchronously, but we want to wait for each
+	// query's callback to return before doing the next one
+
+	sequentially.do_things(connection, [
+		{
+			query: "INSERT INTO matches (match_number, event_code)" +
+                " VALUES(?, ?)" +
+                " ON DUPLICATE KEY UPDATE event_code = event_code",
+			args: [match.match_number, match.event_key]
+		},
+		{
+			query: "INSERT INTO alliance (match_number, event_code, practice, alliance_colour)" +
+                " VALUES (?, ?, FALSE, ?)" + 
+                "ON DUPLICATE KEY UPDATE event_code = event_code",
+			args: [match.match_number, match.event_key, 'red']
+		},
+		{
+			query: "SELECT id FROM alliance" +
+				" WHERE match_number = ?" +
+				"   AND event_code = ?" +
+				"   AND practice = ?" +
+				"   AND alliance_colour = ?",
+			args: [match.match_number, match.event_key, false, 'red'],
+			h: results => alliance_ids["red"] = results[0].id
+		},
+		{
+			query: "INSERT INTO alliance (match_number, event_code, practice, alliance_colour)" +
+                " VALUES (?, ?, FALSE, ?)" + 
+				" ON DUPLICATE KEY UPDATE event_code = event_code",
+			args: [match.match_number, match.event_key, 'blue']
+		},
+		{
+			query: "SELECT id FROM alliance" +
+				" WHERE match_number = ?" +
+				"   AND event_code = ?" +
+				"   AND practice = ?" +
+				"   AND alliance_colour = ?",
+			args: [match.match_number, match.event_key, false, "blue"],
+			h: results => alliance_ids["blue"] = results[0].id
+		},
+
+		{
+			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+				" VALUES (?, ?) " +
+				" ON DUPLICATE KEY UPDATE team_number = team_number;",
+			args: () => [alliance_ids["red"],
+						 parseInt(match.alliances["red"].team_keys[0].substring(3), 10)]
+		},
+
+		{
+			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+				" VALUES (?, ?) " +
+				" ON DUPLICATE KEY UPDATE team_number = team_number;",
+			args: () => [alliance_ids["red"],
+						 parseInt(match.alliances["red"].team_keys[1].substring(3), 10)]
+		},
+
+		{
+			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+				" VALUES (?, ?) " +
+				" ON DUPLICATE KEY UPDATE team_number = team_number;",
+			args: () => [alliance_ids["red"],
+						 parseInt(match.alliances["red"].team_keys[2].substring(3), 10)]
+		},
+
+
+		{
+			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+				" VALUES (?, ?) " +
+				" ON DUPLICATE KEY UPDATE team_number = team_number;",
+			args: () => [alliance_ids["blue"],
+						 parseInt(match.alliances["blue"].team_keys[0].substring(3), 10)]
+		},
+
+		{
+			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+				" VALUES (?, ?) " +
+				" ON DUPLICATE KEY UPDATE team_number = team_number;",
+			args: () => [alliance_ids["blue"],
+						 parseInt(match.alliances["blue"].team_keys[1].substring(3), 10)]
+		},
+
+		{
+			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+				" VALUES (?, ?) " +
+				" ON DUPLICATE KEY UPDATE team_number = team_number;",
+			args: () => [alliance_ids["blue"],
+						 parseInt(match.alliances["blue"].team_keys[2].substring(3), 10)]
+		}
+
+
+
+	]);
 }
 
 function is_qualifying(x){
-    return true; // x.comp_level == 'qm';
+    return  x.comp_level == 'qm';
 }
 
 if (require.main === module) {
+	if (process.argv.length < 3) {
+      throw "Missing argument: event_code";
+	}
+	var event_code = process.argv[2];
     db.with_connection(connection =>  
-		       tba.matches_at_event(process.argv[2],
+		       tba.matches_at_event(event_code,
 					    x => is_qualifying(x) && add_matches(connection, x),
-					    () => {connection.end()}
+					    () => {}
 					   ));
 }
