@@ -3,7 +3,7 @@
 
 const tba = require('./tba.js');
 const db = require('./scouting.js');
-const sequentially = require('./sequentially.js');
+const async = require("async")
 
 // Using connection to database, add the match object
 //basic match schedule information is stored in several tables: matches, alliance, and alliance_member
@@ -21,8 +21,8 @@ function after_all_matches_are_collected_load_them(connection) {
 	load_match_list(connection, matches, () => 	connection.end());
 }
 
-// load the list matches, one at a time.
-// when all are loaded, call the done function.
+// Load the list of matches, one at a time.
+// When all are loaded, call the done function.
 function load_match_list(connection, matches, done) {
 	if (matches.length == 0) {
 		done();
@@ -33,111 +33,134 @@ function load_match_list(connection, matches, done) {
 	console.log(match.event_key + " " + match.match_number);
 	var alliance_ids = {"red": null, "blue": null};
 
-	// Node runs each database query asynchronously, but we want to wait for each
-	// query's callback to return before doing the next one so we can use results
-	// from previous queries
+	// Node runs each database query asynchronously, but we want to wait
+	// for (some of the) queries to finish before doing the next one so we
+	// can use results from previous queries.  To do this we need to use
+	// the aync library, which allows us to run a series of calls
+	// in strict order.  Each call is expressed as function (of one argument,
+	// cb) and it calls that cb when it is done.  The cb function then
+	// calls the next operation (unless there is an error)
 
-	sequentially.do_things(connection, [
-		{
-			query: "INSERT INTO matches (match_number, event_code)" +
+	async.series(
+		[
+
+		// insert match
+			(cb) => connection.query(
+			"INSERT INTO matches (match_number, event_code)" +
                 " VALUES(?, ?)" +
                 " ON DUPLICATE KEY UPDATE event_code = event_code",
-			args: [match.match_number, match.event_key]
-		},
+			[match.match_number, match.event_key],
+			(error, results) => cb(error)
+		),
 
-		// create red alliance
-		{
-			query: "INSERT INTO alliance (match_number, event_code, practice, alliance_colour)" +
+		// insert red alliance
+		(cb) => connection.query(
+			"INSERT INTO alliance (match_number, event_code, practice, alliance_colour)" +
                 " VALUES (?, ?, FALSE, ?)" + 
                 "ON DUPLICATE KEY UPDATE event_code = event_code",
-			args: [match.match_number, match.event_key, 'red']
-		},
+			[match.match_number, match.event_key, 'red'],
+			(error, results) => cb(error)
+		),
 
-		// get the id of that alliance
-		{
-			query: "SELECT id FROM alliance" +
+		// get id of read alliance
+		(cb) => connection.query(
+			"SELECT id FROM alliance" +
 				" WHERE match_number = ?" +
 				"   AND event_code = ?" +
 				"   AND practice = ?" +
 				"   AND alliance_colour = ?",
-			args: [match.match_number, match.event_key, false, 'red'],
-			h: results => alliance_ids["red"] = results[0].id
-		},
+			[match.match_number, match.event_key, false, 'red'],
+			(error, results) => {
+				alliance_ids["red"] = results[0].id;
+				cb(error);
+			}
+		),
 
 		// insert the red members 0,1,2
-		// note that we need to use a function to get the args for the query
-		// because we do not know the alliance id until after the previous query
-		{
-			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+		(cb) => connection.query(
+			"INSERT INTO alliance_member (alliance_id, team_number)" +
 				" VALUES (?, ?) " +
 				" ON DUPLICATE KEY UPDATE team_number = team_number;",
-			args: () => [alliance_ids["red"],
-						 parseInt(match.alliances["red"].team_keys[0].substring(3), 10)]
-		},
-
-		{
-			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+			[alliance_ids["red"],
+			 parseInt(match.alliances["red"].team_keys[0].substring(3), 10)],
+			(error, results) => cb(error)
+		),
+		(cb) => connection.query(
+			"INSERT INTO alliance_member (alliance_id, team_number)" +
 				" VALUES (?, ?) " +
 				" ON DUPLICATE KEY UPDATE team_number = team_number;",
-			args: () => [alliance_ids["red"],
-						 parseInt(match.alliances["red"].team_keys[1].substring(3), 10)]
-		},
+			[alliance_ids["red"],
+			 parseInt(match.alliances["red"].team_keys[1].substring(3), 10)],
+			(error, results) => cb(error)
+		),
 
-		{
-			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+		(cb) => connection.query(
+			"INSERT INTO alliance_member (alliance_id, team_number)" +
 				" VALUES (?, ?) " +
 				" ON DUPLICATE KEY UPDATE team_number = team_number;",
-			args: () => [alliance_ids["red"],
-						 parseInt(match.alliances["red"].team_keys[2].substring(3), 10)]
-		},
+			[alliance_ids["red"],
+			 parseInt(match.alliances["red"].team_keys[2].substring(3), 10)],
+			(error, results) => cb(error, "red3")
+		),
 
-		// insert the blue alliance and its member teams
-
-		{
-			query: "INSERT INTO alliance (match_number, event_code, practice, alliance_colour)" +
+		// insert the blue alliance 
+		(cb) => connection.query(
+			"INSERT INTO alliance (match_number, event_code, practice, alliance_colour)" +
                 " VALUES (?, ?, FALSE, ?)" + 
 				" ON DUPLICATE KEY UPDATE event_code = event_code",
-			args: [match.match_number, match.event_key, 'blue']
-		},
+			[match.match_number, match.event_key, 'blue'],
+			(error, results) => cb(error)
+		),
 
-		{
-			query: "SELECT id FROM alliance" +
+		//  get the alliance id
+		(cb) => connection.query(
+			"SELECT id FROM alliance" +
 				" WHERE match_number = ?" +
 				"   AND event_code = ?" +
 				"   AND practice = ?" +
 				"   AND alliance_colour = ?",
-			args: [match.match_number, match.event_key, false, "blue"],
-			h: results => alliance_ids["blue"] = results[0].id
-		},
+			[match.match_number, match.event_key, false, "blue"],
+			(error, results) => {
+				alliance_ids["blue"] = results[0].id;
+				cb(error);
+			}
+		),
 
-		{
-			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+		// insert teams 
+		(cb) => connection.query(
+			"INSERT INTO alliance_member (alliance_id, team_number)" +
 				" VALUES (?, ?) " +
 				" ON DUPLICATE KEY UPDATE team_number = team_number;",
-			args: () => [alliance_ids["blue"],
-						 parseInt(match.alliances["blue"].team_keys[0].substring(3), 10)]
-		},
+			[alliance_ids["blue"],
+			 parseInt(match.alliances["blue"].team_keys[0].substring(3), 10)],
+			(error, results) => cb(error)
+		),
 
-		{
-			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+		(cb) => connection.query(
+			"INSERT INTO alliance_member (alliance_id, team_number)" +
 				" VALUES (?, ?) " +
 				" ON DUPLICATE KEY UPDATE team_number = team_number;",
-			args: () => [alliance_ids["blue"],
-						 parseInt(match.alliances["blue"].team_keys[1].substring(3), 10)]
-		},
+			[alliance_ids["blue"],
+			 parseInt(match.alliances["blue"].team_keys[1].substring(3), 10)],
+			(error, results) => cb(error)
+		),
 
-		{
-			query: "INSERT INTO alliance_member (alliance_id, team_number)" +
+		(cb) => connection.query(
+			"INSERT INTO alliance_member (alliance_id, team_number)" +
 				" VALUES (?, ?) " +
 				" ON DUPLICATE KEY UPDATE team_number = team_number;",
-			args: () => [alliance_ids["blue"],
-						 parseInt(match.alliances["blue"].team_keys[2].substring(3), 10)]
-		},
+			[alliance_ids["blue"],
+			 parseInt(match.alliances["blue"].team_keys[2].substring(3), 10)],
+			(error, results) => cb(error)
+		)
+		],
+		
+		// This is called when all are finished
+		(err, results) => {
+			load_match_list(connection, matches, done)
+		}
+	);
 
-		// done with this match, go on to the next one
-		() => load_match_list(connection, matches, done)
-
-	]);
 }
 
 function is_qualifying(x){
