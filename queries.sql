@@ -3,26 +3,13 @@ USE strategy;
 SELECT * FROM team;
 SELECT * from frc_event;
 SELECT * FROM frc_match order by match_number ASC;
-SELECT * from alliance ORDER BY match_number ASC;
+SELECT * from alliance;
+SELECT * from alliance_member;
 
 SET SQL_SAFE_UPDATES = 0;
 DELETE FROM frc_match;
 
--- find red/blue alliance_ids for each match
-SELECT m.event_code, m.match_number, red.id as red_id, blue.id as blue_id
-FROM frc_match m
-INNER JOIN alliance red
-   ON red.match_number = m.match_number
-  AND red.event_code = m.event_code
-  AND red.practice = m.practice
-  AND red.alliance_colour = 'red'
-INNER JOIN alliance blue
- ON blue.match_number = m.match_number
-  AND blue.event_code = m.event_code
-  AND blue.practice = m.practice
-  AND blue.alliance_colour = 'blue';
- 
- -- find alliance sizes for all frc_match
+-- find alliance sizes for all frc_match
 SELECT
    m.event_code
  , m.match_number
